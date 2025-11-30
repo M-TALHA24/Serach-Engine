@@ -18,36 +18,38 @@ class TextNormalizer:
     def normalize(self, text):
         if not isinstance(text, str):
             return ""
-        
-        # ------------------ 1. Unicode normalization & remove accents ------------------
+
+        # 1. Unicode normalization & remove combining accents (keep non-English letters)
         text = unicodedata.normalize('NFKD', text)
         text = ''.join(c for c in text if not unicodedata.combining(c))
 
-        # ------------------ 2. Lowercase ------------------
+        # 2. Lowercase
         text = text.lower()
 
-        # ------------------ 3. Handle special sequences like emails/handles ------------------
-        # separate @, #, etc with spaces
+        # 3. Separate special sequences (@, #)
         text = re.sub(r'([@#])', r' \1 ', text)
 
-        # ------------------ 4. Remove apostrophes ------------------
+        # 4. Remove apostrophes
         text = text.replace("'", "")
 
-        # ------------------ 5. Tokenize mathematical operators and parentheses ------------------
+        # 5. Tokenize mathematical operators and parentheses
         text = re.sub(r"([+\-*/=<>])", r" \1 ", text)
         text = re.sub(r"([\(\)])", r" \1 ", text)
 
-        # ------------------ 6. Tokenize dollar signs ------------------
+        # 6. Tokenize dollar signs
         text = re.sub(r"\$", r" $ ", text)
 
-        # ------------------ 7. Replace decimal points in numbers with space ------------------
+        # 7. Replace decimal points in numbers with space
         text = re.sub(r'\b(\d+)\.(\d+)\b', r'\1 \2', text)
         text = re.sub(r',', '', text)  # remove commas in numbers
 
-        # ------------------ 8. Remove all other punctuation ------------------
-        text = re.sub(r"[^a-z0-9\s+\-*/=<>()\$@#]", " ", text)
+        # 8. Remove all other punctuation except letters, numbers, spaces, hyphen
+        text = re.sub(r"[^a-z0-9\s+\-*/=<>()\$@#äöüß]", " ", text)
 
-        # ------------------ 9. Collapse multiple spaces ------------------
+        # 9. Split hyphenated words into separate tokens
+        text = re.sub(r'\s*-\s*', ' ', text)
+
+        # 10. Collapse multiple spaces
         text = " ".join(text.split())
 
         return text
