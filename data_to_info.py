@@ -3,85 +3,51 @@ import json
 import pandas as pd
 from tqdm import tqdm
 import unicodedata
-import time
 import re
+import time
 
 # ====================== Configuration ======================
-#change the adrreses accoeding to your devices cahnge the metadata and base path where base path till the document parses
-
-
-
 BASE_PATH = r"C:\Users\muham\OneDrive\Desktop\cord-19_2020-05-26\2020-05-26\document_parses\document_parses"
 PMC_FOLDER = os.path.join(BASE_PATH, "pmc_json")
 PDF_FOLDER = os.path.join(BASE_PATH, "pdf_json")
 METADATA_FILE = r"C:\Users\muham\OneDrive\Desktop\cord-19_2020-05-26\2020-05-26\metadata.csv"
-
 OUTPUT_FILE = "cord_processed.csv"
 
 # ====================== Text Normalizer ======================
 class TextNormalizer:
-
     def normalize(self, text):
         if not isinstance(text, str):
             return ""
-
-        # ------------------ 1. Remove unicode accents ------------------
+        
+        # ------------------ 1. Unicode normalization & remove accents ------------------
         text = unicodedata.normalize('NFKD', text)
         text = ''.join(c for c in text if not unicodedata.combining(c))
 
         # ------------------ 2. Lowercase ------------------
         text = text.lower()
 
-        # ------------------ 3. PRESERVE emails ------------------
-        emails = re.findall(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}", text)
-        email_tokens = {}
-        for i, e in enumerate(emails):
-            key = f"__EMAIL{i}__"
-            email_tokens[key] = e
-            text = text.replace(e, key)
+        # ------------------ 3. Handle special sequences like emails/handles ------------------
+        # separate @, #, etc with spaces
+        text = re.sub(r'([@#])', r' \1 ', text)
 
-        # ------------------ 4. Tokenize dollar signs ------------------
-        text = re.sub(r"\$", " $ ", text)
+        # ------------------ 4. Remove apostrophes ------------------
+        text = text.replace("'", "")
 
-        # ------------------ 5. Tokenize underscores as space ------------------
-        text = text.replace("_", " ")
-
-        # ------------------ 6. Tokenize parentheses ------------------
-        text = re.sub(r"([()])", r" \1 ", text)
-
-        # ------------------ 7. Tokenize mathematical operators ------------------
+        # ------------------ 5. Tokenize mathematical operators and parentheses ------------------
         text = re.sub(r"([+\-*/=<>])", r" \1 ", text)
+        text = re.sub(r"([\(\)])", r" \1 ", text)
 
-        # ------------------ 8. Preserve decimal + comma numbers ------------------
-        protected_numbers = {}
-        def protect_numbers(match):
-            num = match.group(0)
-            key = f"__NUM{hash(num)}__"
-            protected_numbers[key] = num
-            return key
-        text = re.sub(r"\b\d[\d,]*\.?\d*\b", protect_numbers, text)
+        # ------------------ 6. Tokenize dollar signs ------------------
+        text = re.sub(r"\$", r" $ ", text)
 
-        # ------------------ 9. Remove disallowed characters ------------------
-        allowed = re.compile(r"[^a-z0-9\s'\+\-\*/=<>\(\)]")
-        text = allowed.sub(" ", text)
+        # ------------------ 7. Replace decimal points in numbers with space ------------------
+        text = re.sub(r'\b(\d+)\.(\d+)\b', r'\1 \2', text)
+        text = re.sub(r',', '', text)  # remove commas in numbers
 
-        # ------------------ 9.5 Remove double quotes and periods from words ------------------
-        text = text.replace('"', '')  # remove double quotes
-        text = re.sub(r'(?<!\d)\.(?!\d)', ' ', text)  # remove periods not part of numbers
+        # ------------------ 8. Remove all other punctuation ------------------
+        text = re.sub(r"[^a-z0-9\s+\-*/=<>()\$@#]", " ", text)
 
-        # ------------------ 10. Separate repeated punctuation ------------------
-        text = re.sub(r"([,;!?])([,;!?]+)", r" \1 \2 ", text)
-        text = re.sub(r"([,;!?])", r" \1 ", text)
-
-        # ------------------ 11. Restore protected numbers ------------------
-        for key, val in protected_numbers.items():
-            text = text.replace(key, val)
-
-        # ------------------ 12. Restore protected emails ------------------
-        for key, val in email_tokens.items():
-            text = text.replace(key, val)
-
-        # ------------------ 13. Collapse multiple spaces ------------------
+        # ------------------ 9. Collapse multiple spaces ------------------
         text = " ".join(text.split())
 
         return text
@@ -107,11 +73,8 @@ for idx, row in tqdm(metadata_df.iterrows(), total=len(metadata_df), desc="Proce
 
     url = row.get('url', '')
 
-    pdf_path = row.get('pdf_json_files', '')
-    pmc_path = row.get('pmc_json_files', '')
-
-    pdf_path = str(pdf_path).strip() if pd.notna(pdf_path) else ''
-    pmc_path = str(pmc_path).strip() if pd.notna(pmc_path) else ''
+    pdf_path = str(row.get('pdf_json_files', '')).strip() if pd.notna(row.get('pdf_json_files')) else ''
+    pmc_path = str(row.get('pmc_json_files', '')).strip() if pd.notna(row.get('pmc_json_files')) else ''
 
     if not pmc_path and not pdf_path:
         continue
