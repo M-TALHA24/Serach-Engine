@@ -2,27 +2,12 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 #include <string>
-#include <algorithm>
-#include <chrono>
-#include <iomanip>
-
+#include <unordered_set>
 using namespace std;
-using namespace std::chrono;
 
-// ---------------- LEXICON ENTRY STRUCT -----------------
-struct LexiconEntry {
-    int wordID;
-    vector<string> docIDs;
-    vector<int> freqPerDoc;
-    vector<int> priority;
-    int totalFrequency;
-    LexiconEntry() : wordID(0), totalFrequency(0) {}
-};
-
-// ---------------- SPLIT FUNCTION -----------------
+// ---------------- SPLIT FUNCTION ----------------
 vector<string> splitWords(const string& text) {
     vector<string> words;
     stringstream ss(text);
@@ -31,62 +16,52 @@ vector<string> splitWords(const string& text) {
     return words;
 }
 
-// ---------------- DISPLAY ELAPSED TIME -----------------
-void displayElapsedTime(system_clock::time_point startTime) {
-    auto now = system_clock::now();
-    auto elapsed = duration_cast<seconds>(now - startTime).count();
-    int hrs = elapsed / 3600;
-    int mins = (elapsed % 3600) / 60;
-    int secs = elapsed % 60;
-    cout << "\rElapsed time: "
-         << setw(2) << setfill('0') << hrs << ":"
-         << setw(2) << setfill('0') << mins << ":"
-         << setw(2) << setfill('0') << secs
-         << flush;
-}
+// ---------------- STRUCTS ----------------
+struct WordInfo {
+    int wordID;
+    int freq;
+    int priority;
+};
 
 int main() {
-    string filename = "cord_processed.csv"; // Input CSV
-    unordered_map<string, LexiconEntry> lexicon;
-    unordered_set<string> processed_docs;
-    int wordID_counter = 0;
+    string inputCSV = "cord_processed.csv";
+    string lexiconCSV = "lexicon.csv";          // Existing lexicon (from inverted index)
+    string outputForward = "forward_index.csv"; // Output forward index
 
-    // ---------------- Load existing lexicon -----------------
-    ifstream lexFileIn("lexicon.csv");
-    if (lexFileIn.is_open()) {
-        string line;
-        getline(lexFileIn, line); // skip header
-        while (getline(lexFileIn, line)) {
-            stringstream ss(line);
-            string word, wordIDStr;
-            getline(ss, word, ',');
-            getline(ss, wordIDStr, ',');
-
-            LexiconEntry entry;
-            entry.wordID = stoi(wordIDStr);
-            lexicon[word] = entry;
-            wordID_counter = max(wordID_counter, entry.wordID + 1);
-        }
-        lexFileIn.close();
-        cout << "Loaded existing lexicon. Total words: " << lexicon.size() << endl;
-    }
-
-    // ---------------- Process CSV -----------------
-    ifstream file(filename);
-    if (!file.is_open()) {
-        cerr << "Cannot open file: " << filename << endl;
+    // -------- LOAD EXISTING LEXICON --------
+    unordered_map<string, int> lexicon; // word -> wordID
+    ifstream lexIn(lexiconCSV);
+    if (!lexIn.is_open()) {
+        cerr << "Cannot open lexicon file: " << lexiconCSV << endl;
         return 1;
     }
 
     string line;
-    getline(file, line); // skip header
-    auto startTime = system_clock::now();
-    int processed_lines = 0;
-
-    while (getline(file, line)) {
+    getline(lexIn, line); // skip header
+    while (getline(lexIn, line)) {
         stringstream ss(line);
-        string cord_id, url, authors, title, abstract, body_text, journal;
-        getline(ss, cord_id, ',');
+        string word;
+        int wordID;
+        getline(ss, word, ',');
+        ss >> wordID;
+        lexicon[word] = wordID;
+    }
+    lexIn.close();
+    cout << "Lexicon loaded. Total words: " << lexicon.size() << endl;
+
+    // -------- PROCESS DOCUMENTS --------
+    unordered_map<string, vector<WordInfo>> forwardIndex;
+    ifstream fin(inputCSV);
+    if (!fin.is_open()) {
+        cerr << "Cannot open file: " << inputCSV << endl;
+        return 1;
+    }
+
+    getline(fin, line); // skip header
+    while (getline(fin, line)) {
+        stringstream ss(line);
+        string docID, url, authors, title, abstract, body_text, journal;
+        getline(ss, docID, ',');
         getline(ss, url, ',');
         getline(ss, authors, ',');
         getline(ss, title, ',');
@@ -94,92 +69,62 @@ int main() {
         getline(ss, body_text, ',');
         getline(ss, journal, ',');
 
-        if (processed_docs.find(cord_id) != processed_docs.end()) continue; // skip existing
+        if (docID.empty()) continue;
 
+        // -------- Split sections with priority --------
         vector<pair<vector<string>, int>> sections = {
             {splitWords(title + " " + authors), 1},
             {splitWords(abstract), 2},
             {splitWords(body_text), 3}
         };
 
-        unordered_map<string, pair<int,int>> word_count;
+        unordered_map<string, pair<int,int>> localCount; // word -> (freq, priority)
         for (auto& sec : sections) {
-            vector<string>& words = sec.first;
+            auto& words = sec.first;
             int prio = sec.second;
-            for (string& w : words) {
-                auto it = word_count.find(w);
-                if (it != word_count.end()) {
-                    it->second.first += 1;
-                    it->second.second = min(it->second.second, prio);
+            for (auto& w : words) {
+                if (!lexicon.count(w)) continue; // ignore words not in lexicon
+                if (localCount.count(w)) {
+                    localCount[w].first += 1;
+                    localCount[w].second = min(localCount[w].second, prio);
                 } else {
-                    word_count[w] = {1, prio};
+                    localCount[w] = {1, prio};
                 }
             }
         }
 
-        for (auto& [word, info] : word_count) {
-            int count = info.first;
-            int prio = info.second;
-
-            auto it = lexicon.find(word);
-            if (it == lexicon.end()) {
-                LexiconEntry entry;
-                entry.wordID = wordID_counter++;
-                entry.docIDs.push_back(cord_id);
-                entry.freqPerDoc.push_back(count);
-                entry.priority.push_back(prio);
-                entry.totalFrequency = count;
-                lexicon[word] = entry;
-            } else {
-                LexiconEntry &entry = it->second;
-                entry.docIDs.push_back(cord_id);
-                entry.freqPerDoc.push_back(count);
-                entry.priority.push_back(prio);
-                entry.totalFrequency += count;
-            }
+        // Build forward index for this document
+        vector<WordInfo> docWords;
+        for (auto& [word, info] : localCount) {
+            docWords.push_back({lexicon[word], info.first, info.second});
         }
-
-        processed_docs.insert(cord_id);
-        processed_lines++;
-        if (processed_lines % 10 == 0) displayElapsedTime(startTime);
+        forwardIndex[docID] = docWords;
     }
+    fin.close();
 
-    file.close();
-
-    cout << "\nLexicon built! Total unique words: " << lexicon.size() << endl;
-
-    // ---------------- Save lexicon.csv -----------------
-    ofstream lexFileOut("lexicon.csv");
-    lexFileOut << "word,wordID\n";
-    for (auto& [word, entry] : lexicon) {
-        lexFileOut << word << "," << entry.wordID << "\n";
+    // -------- SAVE FORWARD INDEX --------
+    ofstream fwdOut(outputForward);
+    fwdOut << "docID,wordIDs,freqs,priorities\n";
+    for (auto& [docID, words] : forwardIndex) {
+        fwdOut << docID << ",";
+        for (size_t i = 0; i < words.size(); i++) {
+            fwdOut << words[i].wordID;
+            if (i != words.size()-1) fwdOut << ";";
+        }
+        fwdOut << ",";
+        for (size_t i = 0; i < words.size(); i++) {
+            fwdOut << words[i].freq;
+            if (i != words.size()-1) fwdOut << ";";
+        }
+        fwdOut << ",";
+        for (size_t i = 0; i < words.size(); i++) {
+            fwdOut << words[i].priority;
+            if (i != words.size()-1) fwdOut << ";";
+        }
+        fwdOut << "\n";
     }
-    lexFileOut.close();
-    cout << "Lexicon saved to: lexicon.csv" << endl;
+    fwdOut.close();
+    cout << "Forward index saved to " << outputForward << endl;
 
-    // ---------------- Save postings.csv -----------------
-    ofstream postFileOut("postings.csv");
-    postFileOut << "wordID,docIDs,freqPerDoc,priority,totalFrequency\n";
-    for (auto& [word, entry] : lexicon) {
-        postFileOut << entry.wordID << ",";
-        for (size_t i=0; i<entry.docIDs.size(); ++i) {
-            postFileOut << entry.docIDs[i];
-            if (i != entry.docIDs.size()-1) postFileOut << ";";
-        }
-        postFileOut << ",";
-        for (size_t i=0; i<entry.freqPerDoc.size(); ++i) {
-            postFileOut << entry.freqPerDoc[i];
-            if (i != entry.freqPerDoc.size()-1) postFileOut << ";";
-        }
-        postFileOut << ",";
-        for (size_t i=0; i<entry.priority.size(); ++i) {
-            postFileOut << entry.priority[i];
-            if (i != entry.priority.size()-1) postFileOut << ";";
-        }
-        postFileOut << "," << entry.totalFrequency << "\n";
-    } 
-    postFileOut.close();
-    cout << "Postings saved to: postings.csv" << endl;
-    cout << endl;
     return 0;
 }
