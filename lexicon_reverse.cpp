@@ -12,14 +12,14 @@
 using namespace std;
 using namespace std::chrono;
 
-// ---------------- LEXICON ENTRY STRUCT -----------------
+//  LEXICON ENTRY STRUCT 
 struct LexiconEntry {
     int wordID;
     vector<string> docIDs;
     LexiconEntry() : wordID(0) {}
 };
 
-// ---------------- SPLIT FUNCTION -----------------
+//  SPLIT FUNCTION 
 vector<string> splitWords(const string& text) {
     vector<string> words;
     stringstream ss(text);
@@ -28,7 +28,7 @@ vector<string> splitWords(const string& text) {
     return words;
 }
 
-// ---------------- DISPLAY ELAPSED TIME -----------------
+// DISPLAY ELAPSED TIME 
 void displayElapsedTime(system_clock::time_point startTime) {
     auto now = system_clock::now();
     auto elapsed = duration_cast<seconds>(now - startTime).count();
@@ -48,7 +48,7 @@ int main() {
     unordered_set<string> processed_docs;
     int wordID_counter = 0;
 
-    // ---------------- Load existing lexicon -----------------
+    //  Load existing lexicon 
     ifstream lexFileIn("lexicon.csv");
     if (lexFileIn.is_open()) {
         string line;
@@ -68,7 +68,7 @@ int main() {
         cout << "Loaded existing lexicon. Total words: " << lexicon.size() << endl;
     }
 
-    // ---------------- Process CSV -----------------
+    //  Process CSV 
     ifstream file(filename);
     if (!file.is_open()) {
         cerr << "Cannot open file: " << filename << endl;
@@ -126,7 +126,7 @@ int main() {
 
     cout << "\nLexicon built! Total unique words: " << lexicon.size() << endl;
 
-    // ---------------- Save lexicon.csv -----------------
+    //  Save lexicon.csv 
     ofstream lexFileOut("lexicon.csv");
     lexFileOut << "word,wordID\n";
     for (auto& [word, entry] : lexicon) {
@@ -135,7 +135,7 @@ int main() {
     lexFileOut.close();
     cout << "Lexicon saved to: lexicon.csv" << endl;
 
-    // ---------------- Save postings.csv -----------------
+    //  Save postings.csv 
     ofstream postFileOut("postings.csv");
     postFileOut << "wordID,docIDs\n";
     for (auto& [word, entry] : lexicon) {
