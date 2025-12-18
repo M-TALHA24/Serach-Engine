@@ -3,15 +3,19 @@
 
 void writeForwardIndex(
     const std::string &docID,
-    const std::unordered_map<int,int> &freqMap
-) {
+    const std::unordered_set<int> &wordSet)
+{
     std::ofstream out("data/forward_index.csv", std::ios::app);
     out << docID << ",";
+
     bool first = true;
-    for (auto &p : freqMap) {
-        if (!first) out << ";";
+    for (int wordID : wordSet)
+    {
+        if (!first)
+            out << ";";
         first = false;
-        out << p.first << ":" << p.second;
+        out << wordID;
     }
+
     out << "\n";
 }

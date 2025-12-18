@@ -54,8 +54,10 @@ int main() {
         }
 
         // Tokenize sections
-        std::unordered_map<int,int> freqMap;
-        std::unordered_map<int,std::vector<int>> posMap;
+       std::unordered_map<int,int> freqMap;   // still needed for inverted index
+std::unordered_map<int,std::vector<int>> posMap;
+std::unordered_set<int> wordSet;       // NEW: for forward index
+
 
         auto processText = [&](const std::string &text, int priority){
             auto words = tokenize(text);
@@ -63,6 +65,7 @@ int main() {
                 int wid = lex.getWordID(words[i]);
                 freqMap[wid]++;
                 posMap[wid].push_back(i);
+                wordSet.insert(wid); 
                 writeInverted(wid, docID, freqMap[wid], priority, posMap[wid]);
             }
         };
@@ -71,7 +74,7 @@ int main() {
         processText(abstractText,2);
         processText(body,3);
 
-        writeForwardIndex(docID,freqMap);
+        writeForwardIndex(docID,wordSet);
 
         ++docCount;
         if((docCount&127)==0) std::cout << "Processed docs: " << docCount << "\r";
