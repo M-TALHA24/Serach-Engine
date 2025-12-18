@@ -2,6 +2,7 @@
 // SEARCH API SERVER
 // A simple HTTP server that handles search requests
 // Returns JSON results to the React frontend
+// Features: BM25 semantic ranking, autocomplete
 // ============================================
 
 #include <iostream>
@@ -10,8 +11,10 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 #include <cstring>
+#include <cmath>
 
 // Windows socket headers
 #ifdef _WIN32
@@ -116,6 +119,16 @@ unordered_map<string, int> lexicon;                     // word -> wordID
 unordered_map<string, Document> documents;              // docId -> document info
 unordered_map<int, vector<pair<string, int>>> postings; // wordID -> [(docId, freq)]
 Trie autocompleteTrie;                                  // Trie for word suggestions
+
+// BM25 Parameters and Statistics
+unordered_map<string, int> docLengths; // docId -> document length (total terms)
+unordered_map<int, int> docFrequency;  // wordID -> number of documents containing this word
+double avgDocLength = 0.0;             // Average document length
+int totalDocuments = 0;                // Total number of documents
+
+// BM25 tuning parameters
+const double k1 = 1.5; // Term frequency saturation parameter
+const double b = 0.75; // Document length normalization parameter
 
 // ============================================
 // HELPER FUNCTIONS
@@ -260,13 +273,28 @@ void loadPostings(const string &path)
             frequencies.push_back(stoi(freq));
         }
 
+        // Track document frequency for IDF calculation
+        docFrequency[wordId] = docs.size();
+
         for (size_t i = 0; i < docs.size() && i < frequencies.size(); i++)
         {
             postings[wordId].push_back({docs[i], frequencies[i]});
+            // Track document lengths for BM25 normalization
+            docLengths[docs[i]] += frequencies[i];
         }
     }
 
+    // Calculate average document length
+    long long totalLength = 0;
+    for (const auto &dl : docLengths)
+    {
+        totalLength += dl.second;
+    }
+    totalDocuments = docLengths.size();
+    avgDocLength = totalDocuments > 0 ? (double)totalLength / totalDocuments : 1.0;
+
     cout << "Loaded postings for " << postings.size() << " words" << endl;
+    cout << "Total documents: " << totalDocuments << ", Avg doc length: " << avgDocLength << endl;
 }
 
 void loadDocuments(const string &path)
@@ -311,17 +339,43 @@ void loadDocuments(const string &path)
 }
 
 // ============================================
-// SEARCH FUNCTION
-// Simple TF-based ranking
+// BM25 SEARCH FUNCTION
+// Industry-standard semantic ranking algorithm
+// Considers term frequency, document frequency,
+// and document length for relevance scoring
 // ============================================
+
+// Calculate IDF (Inverse Document Frequency) for a term
+double calculateIDF(int docFreq)
+{
+    if (docFreq <= 0 || totalDocuments <= 0)
+        return 0.0;
+    // Standard IDF formula with smoothing
+    return log((totalDocuments - docFreq + 0.5) / (docFreq + 0.5) + 1.0);
+}
+
+// Calculate BM25 score for a term in a document
+double calculateBM25Score(int termFreq, int docLength, double idf)
+{
+    // BM25 formula
+    double tf = (double)termFreq;
+    double docLenNorm = (double)docLength / avgDocLength;
+    double numerator = tf * (k1 + 1);
+    double denominator = tf + k1 * (1 - b + b * docLenNorm);
+    return idf * (numerator / denominator);
+}
 
 vector<SearchResult> search(const string &query)
 {
     vector<string> terms = tokenize(query);
-    unordered_map<string, double> scores; // docId -> score
+    unordered_map<string, double> scores;   // docId -> BM25 score
+    unordered_map<string, int> termMatches; // docId -> number of query terms matched
 
-    // For each search term
-    for (const string &term : terms)
+    // Remove duplicate terms from query
+    unordered_set<string> uniqueTerms(terms.begin(), terms.end());
+
+    // For each unique search term
+    for (const string &term : uniqueTerms)
     {
         auto lexIt = lexicon.find(term);
         if (lexIt == lexicon.end())
@@ -332,20 +386,34 @@ vector<SearchResult> search(const string &query)
         if (postIt == postings.end())
             continue; // No postings
 
-        // Add frequency to document score
+        // Get IDF for this term
+        double idf = calculateIDF(docFrequency[wordId]);
+
+        // Calculate BM25 score for each document containing this term
         for (const auto &posting : postIt->second)
         {
-            scores[posting.first] += posting.second;
+            const string &docId = posting.first;
+            int termFreq = posting.second;
+            int docLength = docLengths.count(docId) ? docLengths[docId] : (int)avgDocLength;
+
+            double bm25Score = calculateBM25Score(termFreq, docLength, idf);
+            scores[docId] += bm25Score;
+            termMatches[docId]++;
         }
     }
 
-    // Convert to vector and sort by score
+    // Convert to vector and apply coordination factor boost
     vector<SearchResult> results;
+    int queryTermCount = uniqueTerms.size();
+
     for (const auto &p : scores)
     {
         SearchResult result;
         result.docId = p.first;
-        result.score = p.second;
+
+        // Apply coordination factor: documents matching more query terms get boosted
+        double coordFactor = queryTermCount > 0 ? (double)termMatches[p.first] / queryTermCount : 1.0;
+        result.score = p.second * (0.5 + 0.5 * coordFactor);
 
         // Get document metadata if available
         auto docIt = documents.find(p.first);
