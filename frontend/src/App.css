@@ -1,0 +1,37 @@
+/* ============================================
+   APP STYLES
+   Global layout and header styling
+============================================ */
+
+/* Main app container */
+.app {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+/* Header section */
+.header {
+  text-align: center;
+  padding: 60px 20px 20px;
+}
+
+/* Logo/Title - clickable to reset */
+.logo {
+  font-size: 32px;
+  font-weight: 700;
+  color: #222;
+  margin: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.logo:hover {
+  color: #555;
+}
+
+/* Tagline under logo */
+.tagline {
+  font-size: 16px;
+  color: #888;
+  margin: 8px 0 0;
+}
