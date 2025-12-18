@@ -54,11 +54,68 @@ struct SearchResult
 };
 
 // ============================================
+// TRIE FOR AUTOCOMPLETE
+// ============================================
+struct TrieNode
+{
+    unordered_map<char, TrieNode *> children;
+    bool isEnd = false;
+};
+
+class Trie
+{
+private:
+    TrieNode *root;
+
+    void dfs(TrieNode *node, string prefix, vector<string> &results, int limit) const
+    {
+        if ((int)results.size() >= limit)
+            return;
+        if (node->isEnd)
+            results.push_back(prefix);
+        for (auto &p : node->children)
+        {
+            dfs(p.second, prefix + p.first, results, limit);
+        }
+    }
+
+public:
+    Trie() { root = new TrieNode(); }
+
+    void insert(const string &word)
+    {
+        TrieNode *node = root;
+        for (char c : word)
+        {
+            if (!node->children[c])
+                node->children[c] = new TrieNode();
+            node = node->children[c];
+        }
+        node->isEnd = true;
+    }
+
+    vector<string> autocomplete(const string &prefix, int limit = 10) const
+    {
+        TrieNode *node = root;
+        for (char c : prefix)
+        {
+            if (!node->children.count(c))
+                return {};
+            node = node->children[c];
+        }
+        vector<string> results;
+        dfs(node, prefix, results, limit);
+        return results;
+    }
+};
+
+// ============================================
 // GLOBAL DATA (loaded at startup)
 // ============================================
 unordered_map<string, int> lexicon;                     // word -> wordID
 unordered_map<string, Document> documents;              // docId -> document info
 unordered_map<int, vector<pair<string, int>>> postings; // wordID -> [(docId, freq)]
+Trie autocompleteTrie;                                  // Trie for word suggestions
 
 // ============================================
 // HELPER FUNCTIONS
@@ -156,6 +213,7 @@ void loadLexicon(const string &path)
         getline(ss, word, ',');
         ss >> id;
         lexicon[word] = id;
+        autocompleteTrie.insert(word); // Build trie for autocomplete
     }
 
     cout << "Loaded " << lexicon.size() << " words from lexicon" << endl;
@@ -375,6 +433,20 @@ string resultsToJson(const vector<SearchResult> &results)
     return json.str();
 }
 
+string suggestionsToJson(const vector<string> &suggestions)
+{
+    stringstream json;
+    json << "{\"suggestions\":[";
+    for (size_t i = 0; i < suggestions.size(); i++)
+    {
+        if (i > 0)
+            json << ",";
+        json << "\"" << escapeJson(suggestions[i]) << "\"";
+    }
+    json << "]}";
+    return json.str();
+}
+
 // ============================================
 // HTTP SERVER
 // ============================================
@@ -398,6 +470,20 @@ void handleClient(SOCKET clientSocket)
     if (request.find("OPTIONS") == 0)
     {
         response = "HTTP/1.1 204 No Content\r\n" + corsHeaders + "\r\n";
+    }
+    // Handle autocomplete request
+    else if (request.find("GET /autocomplete") != string::npos)
+    {
+        string prefix = getQueryParam(request);
+        auto suggestions = autocompleteTrie.autocomplete(prefix, 8);
+        body = suggestionsToJson(suggestions);
+
+        response = "HTTP/1.1 200 OK\r\n"
+                   "Content-Type: application/json\r\n" +
+                   corsHeaders +
+                   "Content-Length: " + to_string(body.length()) + "\r\n"
+                                                                   "\r\n" +
+                   body;
     }
     // Handle search request
     else if (request.find("GET /search") != string::npos)

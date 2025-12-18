@@ -1,37 +1,310 @@
 /* ============================================
    APP STYLES
-   Global layout and header styling
+   Professional, modern search engine design
 ============================================ */
 
 /* Main app container */
 .app {
   min-height: 100vh;
-  background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
-/* Header section */
+/* ============================================
+   HEADER SECTION
+============================================ */
+
 .header {
   text-align: center;
-  padding: 60px 20px 20px;
+  padding: 80px 20px 40px;
+  transition: all 0.3s ease;
 }
 
-/* Logo/Title - clickable to reset */
+.header-compact {
+  padding: 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.header-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Logo styling */
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 32px;
   font-weight: 700;
-  color: #222;
+  color: #1e293b;
   margin: 0;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.header-compact .logo {
+  font-size: 24px;
 }
 
 .logo:hover {
-  color: #555;
+  transform: scale(1.02);
+}
+
+.logo-icon {
+  font-size: 1.1em;
+}
+
+.logo-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logo-search {
+  color: #64748b;
+  font-weight: 500;
 }
 
 /* Tagline under logo */
 .tagline {
-  font-size: 16px;
-  color: #888;
-  margin: 8px 0 0;
+  font-size: 20px;
+  color: #475569;
+  margin: 24px 0 0;
+  line-height: 1.5;
+}
+
+.tagline-sub {
+  display: block;
+  font-size: 15px;
+  color: #94a3b8;
+  margin-top: 8px;
+}
+
+/* ============================================
+   MAIN CONTENT
+============================================ */
+
+.main-content {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ============================================
+   SEARCH SECTION
+============================================ */
+
+.search-section {
+  padding: 20px 0;
+}
+
+.search-sticky {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(
+    180deg,
+    #f8fafc 0%,
+    rgba(248, 250, 252, 0.95) 100%
+  );
+  z-index: 100;
+  padding: 16px 0;
+  margin: 0 -20px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* Search options / mode toggle */
+.search-options {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.mode-label {
+  font-size: 13px;
+  color: #64748b;
+  padding: 0 8px;
+}
+
+.mode-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-btn:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.mode-btn.active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+/* ============================================
+   ERROR STATE
+============================================ */
+
+.error-container {
+  display: flex;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.error-card {
+  text-align: center;
+  background: #ffffff;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 400px;
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.error-card h3 {
+  font-size: 20px;
+  color: #dc2626;
+  margin: 0 0 12px;
+}
+
+.error-card p {
+  color: #64748b;
+  margin: 0 0 8px;
+}
+
+.error-hint {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.retry-button {
+  margin-top: 20px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retry-button:hover {
+  background: #2563eb;
+}
+
+/* ============================================
+   FOOTER
+============================================ */
+
+.footer {
+  text-align: center;
+  padding: 24px 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  margin-top: auto;
+}
+
+.footer p {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.footer a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+============================================ */
+
+@media (max-width: 768px) {
+  .header {
+    padding: 60px 16px 30px;
+  }
+
+  .header-compact {
+    padding: 16px;
+  }
+
+  .logo {
+    font-size: 26px;
+  }
+
+  .header-compact .logo {
+    font-size: 20px;
+  }
+
+  .tagline {
+    font-size: 16px;
+  }
+
+  .tagline-sub {
+    font-size: 14px;
+  }
+
+  .main-content {
+    padding: 0 16px;
+  }
+
+  .mode-toggle {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .mode-label {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 40px 16px 20px;
+  }
+
+  .logo {
+    font-size: 22px;
+  }
+
+  .tagline {
+    font-size: 15px;
+  }
 }
