@@ -44,6 +44,7 @@ struct Document
     string title;
     string authors;
     string abstract;
+    string url;
 };
 
 // Structure for search results with ranking score
@@ -53,6 +54,7 @@ struct SearchResult
     string title;
     string authors;
     string abstract;
+    string url;
     double score;
 };
 
@@ -118,6 +120,7 @@ public:
 unordered_map<string, int> lexicon;                     // word -> wordID
 unordered_map<string, Document> documents;              // docId -> document info
 unordered_map<int, vector<pair<string, int>>> postings; // wordID -> [(docId, freq)]
+unordered_map<string, string> docUrls;                  // docId -> URL
 Trie autocompleteTrie;                                  // Trie for word suggestions
 
 // BM25 Parameters and Statistics
@@ -338,6 +341,35 @@ void loadDocuments(const string &path)
     cout << "Loaded " << documents.size() << " documents" << endl;
 }
 
+void loadDocUrls(const string &path)
+{
+    ifstream file(path);
+    if (!file.is_open())
+    {
+        cerr << "Warning: Could not open doc_urls at " << path << endl;
+        return;
+    }
+
+    string line;
+    getline(file, line); // Skip header
+
+    while (getline(file, line))
+    {
+        if (line.empty())
+            continue;
+
+        size_t commaPos = line.find(',');
+        if (commaPos != string::npos)
+        {
+            string docId = line.substr(0, commaPos);
+            string url = line.substr(commaPos + 1);
+            docUrls[docId] = url;
+        }
+    }
+
+    cout << "Loaded " << docUrls.size() << " document URLs" << endl;
+}
+
 // ============================================
 // BM25 SEARCH FUNCTION
 // Industry-standard semantic ranking algorithm
@@ -430,6 +462,13 @@ vector<SearchResult> search(const string &query)
             result.abstract = "";
         }
 
+        // Get URL if available
+        auto urlIt = docUrls.find(p.first);
+        if (urlIt != docUrls.end())
+        {
+            result.url = urlIt->second;
+        }
+
         results.push_back(result);
     }
 
@@ -493,6 +532,7 @@ string resultsToJson(const vector<SearchResult> &results)
         json << "\"title\":\"" << escapeJson(results[i].title) << "\",";
         json << "\"authors\":\"" << escapeJson(results[i].authors) << "\",";
         json << "\"abstract\":\"" << escapeJson(results[i].abstract) << "\",";
+        json << "\"url\":\"" << escapeJson(results[i].url) << "\",";
         json << "\"score\":" << results[i].score;
         json << "}";
     }
@@ -596,6 +636,7 @@ int main()
     loadLexicon("data/lexicon.csv");
     loadPostings("data/postings.csv");
     loadDocuments("Code Produced Data/cord_processed.csv");
+    loadDocUrls("data/doc_urls.csv");
 
 // Initialize Winsock (Windows only)
 #ifdef _WIN32

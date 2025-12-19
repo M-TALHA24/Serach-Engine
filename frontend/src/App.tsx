@@ -22,6 +22,7 @@ interface SearchResult {
   title: string;
   authors: string;
   abstract: string;
+  url: string;
   score: number;
 }
 

@@ -15,6 +15,7 @@ interface SearchResult {
   title: string;
   authors: string;
   abstract: string;
+  url: string;
   score: number;
 }
 
@@ -268,10 +269,23 @@ function ResultCard({ result, rank }: ResultCardProps) {
 
       {/* Footer */}
       <div className="card-footer">
-        <span className="doc-id">
-          <span className="id-label">Document ID:</span>
-          <code>{result.docId}</code>
-        </span>
+        {result.url ? (
+          <a
+            href={result.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="paper-link"
+          >
+            <span className="link-icon">📄</span>
+            View Full Paper on PubMed
+            <span className="external-icon">↗</span>
+          </a>
+        ) : (
+          <span className="doc-id">
+            <span className="id-label">Document ID:</span>
+            <code>{result.docId}</code>
+          </span>
+        )}
       </div>
     </article>
   );
