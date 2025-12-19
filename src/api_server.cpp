@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cmath>
+#include <chrono>
 
 // Windows socket headers
 #ifdef _WIN32
@@ -572,7 +573,7 @@ void handleClient(SOCKET clientSocket)
     string corsHeaders =
         "Access-Control-Allow-Origin: *\r\n"
         "Access-Control-Allow-Methods: GET, OPTIONS\r\n"
-        "Access-Control-Allow-Headers: Content-Type\r\n";
+        "Access-Control-Allow-Headers: Content-Type, ngrok-skip-browser-warning\r\n";
 
     // Handle OPTIONS preflight
     if (request.find("OPTIONS") == 0)
@@ -597,10 +598,21 @@ void handleClient(SOCKET clientSocket)
     else if (request.find("GET /search") != string::npos)
     {
         string query = getQueryParam(request);
-        cout << "Search query: " << query << endl;
+
+        // Measure search time
+        auto startTime = chrono::high_resolution_clock::now();
 
         auto results = search(query);
+
+        auto searchEnd = chrono::high_resolution_clock::now();
+        auto searchMs = chrono::duration_cast<chrono::microseconds>(searchEnd - startTime).count() / 1000.0;
+
         body = resultsToJson(results);
+
+        auto jsonEnd = chrono::high_resolution_clock::now();
+        auto jsonMs = chrono::duration_cast<chrono::microseconds>(jsonEnd - searchEnd).count() / 1000.0;
+
+        cout << "Query: \"" << query << "\" | Search: " << searchMs << "ms | JSON: " << jsonMs << "ms | Results: " << results.size() << endl;
 
         response = "HTTP/1.1 200 OK\r\n"
                    "Content-Type: application/json\r\n" +
