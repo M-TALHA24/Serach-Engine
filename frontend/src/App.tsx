@@ -62,7 +62,12 @@ function App() {
             : searchQuery;
 
         const response = await fetch(
-          `${API_BASE}/search?q=${encodeURIComponent(finalQuery)}`
+          `${API_BASE}/search?q=${encodeURIComponent(finalQuery)}`,
+          {
+            headers: {
+              "ngrok-skip-browser-warning": "true",
+            },
+          }
         );
 
         if (!response.ok) {

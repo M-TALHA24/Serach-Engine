@@ -55,7 +55,12 @@ function SearchBar({ onSearch, initialQuery = "" }: SearchBarProps) {
       setIsLoadingSuggestions(true);
       try {
         const response = await fetch(
-          `${API_BASE}/autocomplete?q=${encodeURIComponent(lastWord)}`
+          `${API_BASE}/autocomplete?q=${encodeURIComponent(lastWord)}`,
+          {
+            headers: {
+              "ngrok-skip-browser-warning": "true",
+            },
+          }
         );
         const data = await response.json();
         if (data.suggestions && data.suggestions.length > 0) {
